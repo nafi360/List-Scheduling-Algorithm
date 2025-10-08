@@ -1,12 +1,11 @@
-# heft.py
 import numpy as np
+import networkx as nx
 
-def upward_rank(G, exec_time, comm):
+def _upward_rank(G: nx.DiGraph, exec_time: np.ndarray, comm: np.ndarray) -> np.ndarray:
     n = exec_time.shape[0]
     avg_exec = exec_time.mean(axis=1)
     r = np.zeros(n)
-    order = list(reversed(list(nx.topological_sort(G)))) # type: ignore
-    for v in order:
+    for v in reversed(list(nx.topological_sort(G))):
         succ = list(G.successors(v))
         if succ:
             r[v] = avg_exec[v] + max(comm[v, w] + r[w] for w in succ)
@@ -14,10 +13,10 @@ def upward_rank(G, exec_time, comm):
             r[v] = avg_exec[v]
     return r
 
-def heft_schedule(G, exec_time, comm):
-    import networkx as nx
+
+def heft_schedule(G: nx.DiGraph, exec_time: np.ndarray, comm: np.ndarray):
     n, P = exec_time.shape
-    r = upward_rank(G, exec_time, comm)
+    r = _upward_rank(G, exec_time, comm)
     order = list(range(n))
     order.sort(key=lambda v: r[v], reverse=True)
 
@@ -27,18 +26,17 @@ def heft_schedule(G, exec_time, comm):
     assign = -np.ones(n, dtype=int)
 
     for v in order:
-        best_p, best_finish, best_start = None, float('inf'), 0
+        best_p, best_finish, best_start = None, float("inf"), 0.0
         for p in range(P):
-            # ready time = max availability proc & parents finish + comm if cross-proc
-            ready = avail[p]
+            ready = float(avail[p])
             for u in G.predecessors(v):
-                comm_delay = 0 if assign[u] == p else comm[u, v]
-                ready = max(ready, finish[u] + comm_delay)
-            f = ready + exec_time[v, p]
+                comm_delay = 0.0 if assign[u] == p else float(comm[u, v])
+                ready = max(ready, float(finish[u]) + comm_delay)
+            f = ready + float(exec_time[v, p])
             if f < best_finish:
                 best_finish, best_p, best_start = f, p, ready
-        assign[v] = best_p
-        start[v] = best_start
-        finish[v] = best_finish
-        avail[best_p] = best_finish
+        assign[v] = int(best_p)
+        start[v] = float(best_start)
+        finish[v] = float(best_finish)
+        avail[best_p] = float(best_finish)
     return assign, start, finish
