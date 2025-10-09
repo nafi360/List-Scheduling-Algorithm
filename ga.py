@@ -104,7 +104,7 @@ def normalize_metrics(metrics_list):
     maxs = arr.max(axis=0)
     denom = np.where(maxs > mins, maxs - mins, 1.0)
     norm = (arr - mins) / denom
-    norm[:, 3] = 1.0 - norm[:, 3]  # reliability jadi 1-R
+    norm[:, 3] = 1.0 - norm[:, 3]
     return norm
 
 
@@ -120,8 +120,8 @@ def ga_schedule(G, exec_time, comm, P, params):
         for (order, mapping) in pop:
             assign, start, finish = decode_schedule(G, order, mapping, exec_time, comm)
             met = compute_metrics_from_timeline(assign, start, finish, P,
-                                                params.power_active, params.power_idle,
-                                                params.price_per_core_hour, params.lambda_fail)
+                                                params.power_active[:P], params.power_idle[:P],
+                                                params.price_per_core_hour, params.lambda_fail[:P])
             raw_metrics.append(met)
             decoded.append((order, mapping, assign, start, finish))
 

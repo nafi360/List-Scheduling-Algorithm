@@ -4,12 +4,11 @@ import matplotlib.pyplot as plt
 
 _rng = np.random.default_rng()
 
-def gen_dag(n_nodes: int, shape: float, max_outdeg: int, seed: int | None = None):
+def gen_dag(n_nodes: int, shape: float, max_outdeg: int | None, seed: int | None = None):
     if seed is not None:
         np.random.seed(seed)
     G = nx.DiGraph()
     G.add_nodes_from(range(n_nodes))
-    # jumlah level dipengaruhi shape
     n_levels = max(2, int(np.ceil(np.sqrt(n_nodes) / max(0.5, min(shape, 4)))))
     levels = [[] for _ in range(n_levels)]
 
@@ -25,19 +24,22 @@ def gen_dag(n_nodes: int, shape: float, max_outdeg: int, seed: int | None = None
 
     for i in range(n_levels - 1):
         for u in levels[i]:
-            outdeg = int(_rng.integers(0, max_outdeg + 1))
+            max_possible = sum(len(levels[j]) for j in range(i+1, n_levels))
+            m = max_outdeg if max_outdeg is not None else max(1, min(max_possible, n_nodes-1))
+            outdeg = int(_rng.integers(1, m + 1))
             used = set()
-            for _ in range(outdeg):
+            trials = 0
+            while len(used) < outdeg and trials < 5*m:
                 j = int(_rng.integers(i + 1, n_levels))
                 if levels[j]:
                     v = int(_rng.choice(levels[j]))
                     if v != u and (u, v) not in used:
                         G.add_edge(u, v)
                         used.add((u, v))
+                trials += 1
 
     assert nx.is_directed_acyclic_graph(G)
 
-    # pastikan ada jembatan antar level bertetangga
     for i in range(n_levels - 1):
         if not any((u, v) in G.edges for u in levels[i] for v in levels[i + 1]):
             u = int(_rng.choice(levels[i]))
@@ -47,18 +49,19 @@ def gen_dag(n_nodes: int, shape: float, max_outdeg: int, seed: int | None = None
     return G, levels
 
 
-def assign_costs(G: nx.DiGraph, P: int, ccr: float, comp_cost_range=(0.5, 1.5), seed: int | None = None):
+def assign_costs(G: nx.DiGraph, P: int, ccr: float, beta: float = 0.5, seed: int | None = None):
+    """Hasilkan waktu eksekusi heterogen berbasis beta dari tabel."""
     if seed is not None:
         np.random.seed(seed)
     n = G.number_of_nodes()
-    base = _rng.uniform(1.0, 10.0, size=n)
+    base = _rng.uniform(1.0, 10.0, size=n)  # w_i
     proc_factor = _rng.uniform(0.7, 1.3, size=P)
     exec_time = np.zeros((n, P))
-    lo, hi = comp_cost_range
-    jitter = _rng.uniform(lo, hi, size=n)
+    lo = 1 - beta/2
+    hi = 1 + beta/2
+    jitter = _rng.uniform(lo, hi, size=(n, P))
     for v in range(n):
-        for p in range(P):
-            exec_time[v, p] = base[v] * jitter[v] * proc_factor[p]
+        exec_time[v, :] = base[v] * proc_factor * jitter[v, :]
 
     comm = np.zeros((n, n))
     for (u, v) in G.edges:

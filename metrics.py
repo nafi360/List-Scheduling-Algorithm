@@ -3,7 +3,7 @@ import numpy as np
 def compute_metrics_from_timeline(assign, start, finish, P,
                                   power_active, power_idle,
                                   price_per_core_hour, lambda_fail):
-    makespan = float(np.max(finish))
+    makespan = float(np.nanmax(finish))
     active = np.zeros(P)
     for v in range(len(assign)):
         p = int(assign[v])
