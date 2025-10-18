@@ -4,7 +4,7 @@ import numpy as np
 # Sesuai tabel param
 NODES = [10,20,30,40,50,60,70,80,90,100]
 CCRs = [0.1, 0.5, 0.8, 1, 2, 5, 8, 10]
-PROCESSORS = [8]  # untuk real-run akan dibatasi oleh core fisik
+PROCESSORS = [4, 8, 16, 32]  # untuk real-run akan dibatasi oleh core fisik
 SHAPES = [0.5, 0.8, 1, 2, 4]
 # Out-degree: gunakan rentang 1..v (dinamis). Jika ingin batasi, isi list di bawah.
 MAX_OUTDEG_LIST = None  # None berarti 1..v; atau misal [1,2,3,4]

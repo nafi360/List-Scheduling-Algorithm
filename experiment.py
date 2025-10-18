@@ -9,18 +9,24 @@ from metrics import compute_metrics_from_timeline
 
 
 def run_once(n, ccr, shape, P, max_outdeg, seed, preview=False):
+    # membentuk DAG dan biaya
     G, _ = gen_dag(n, shape, max_outdeg=max_outdeg, seed=seed)
     exec_time, comm = assign_costs(G, P, ccr, beta=BETA, seed=seed)
 
+    # Preview DAG dengan probabilitas kecil
     if preview and random.random() < 0.05:
         filename = f"dag_preview_n{n}_ccr{ccr}_shape{shape}_P{P}_rep{seed}.png"
         plot_dag(G, title=f"Preview DAG n={n}, CCR={ccr}, shape={shape}, P={P}", save_path=filename)
 
+    # penjadwalan dengan HEFT
     assign_h, start_h, finish_h = heft_schedule(G, exec_time, comm)
+    
+    # hitung metrik
     met_h = compute_metrics_from_timeline(assign_h, start_h, finish_h, P,
                                           GA_PARAMS.power_active[:P], GA_PARAMS.power_idle[:P],
                                           GA_PARAMS.price_per_core_hour, GA_PARAMS.lambda_fail[:P])
 
+    # penjadwalan dengan GA
     _, _, assign_g, start_g, finish_g, met_g = ga_schedule(G, exec_time, comm, P, GA_PARAMS)
 
     return met_h, met_g
