@@ -1,7 +1,17 @@
 import csv
 import itertools
 import random
-from config import PROCESSORS, CCRs, SHAPES, MAX_OUTDEG_LIST, NODES, BETA, REPEATS, GA_PARAMS
+from config import (
+    PROCESSORS,
+    CCRs,
+    SHAPES,
+    MAX_OUTDEG_LIST,
+    NODES,
+    BETA,
+    REPEATS,
+    GA_PARAMS,
+    get_resource_profile,
+)
 from dag_gen import gen_dag, assign_costs, plot_dag
 from heft import heft_schedule
 from ga import ga_schedule
@@ -13,6 +23,8 @@ def run_once(n, ccr, shape, P, max_outdeg, seed, preview=False):
     G, _ = gen_dag(n, shape, max_outdeg=max_outdeg, seed=seed)
     exec_time, comm = assign_costs(G, P, ccr, beta=BETA, seed=seed)
 
+    resource = get_resource_profile(P)
+
     # Preview DAG dengan probabilitas kecil
     if preview and random.random() < 0.05:
         filename = f"dag_preview_n{n}_ccr{ccr}_shape{shape}_P{P}_rep{seed}.png"
@@ -22,14 +34,21 @@ def run_once(n, ccr, shape, P, max_outdeg, seed, preview=False):
     assign_h, start_h, finish_h = heft_schedule(G, exec_time, comm)
     
     # hitung metrik
-    met_h = compute_metrics_from_timeline(assign_h, start_h, finish_h, P,
-                                          GA_PARAMS.power_active[:P], GA_PARAMS.power_idle[:P],
-                                          GA_PARAMS.price_per_core_hour, GA_PARAMS.lambda_fail[:P])
+    met_h = compute_metrics_from_timeline(
+        assign_h,
+        start_h,
+        finish_h,
+        P,
+        resource.power_active,
+        resource.power_idle,
+        resource.price_per_core_hour,
+        resource.lambda_fail,
+    )
 
     # penjadwalan dengan GA
-    _, _, assign_g, start_g, finish_g, met_g = ga_schedule(G, exec_time, comm, P, GA_PARAMS)
+    _, _, assign_g, start_g, finish_g, met_g = ga_schedule(G, exec_time, comm, P, GA_PARAMS, resource)
 
-    return met_h, met_g
+    return resource.instance, met_h, met_g
 
 
 def main():
@@ -41,15 +60,31 @@ def main():
             seed = seed_base + rep
             try:
                 preview_flag = random.random() < 0.02
-                met_h, met_g = run_once(n, ccr, shape, P, outdeg, seed, preview=preview_flag)
+                instance, met_h, met_g = run_once(n, ccr, shape, P, outdeg, seed, preview=preview_flag)
                 rows.append({
-                    "n": n, "ccr": ccr, "shape": shape, "P": P, "outdeg": (outdeg if outdeg is not None else -1), "rep": rep,
+                    "n": n,
+                    "ccr": ccr,
+                    "shape": shape,
+                    "P": P,
+                    "instance": instance.name,
+                    "memory_gib": instance.memory_gib,
+                    "price_per_hour": instance.price_per_hour,
+                    "outdeg": (outdeg if outdeg is not None else -1),
+                    "rep": rep,
                     "algo": "HEFT",
                     "makespan": met_h[0], "energy": met_h[1], "cost": met_h[2],
                     "reliability": met_h[3], "load_balance": met_h[4]
                 })
                 rows.append({
-                    "n": n, "ccr": ccr, "shape": shape, "P": P, "outdeg": (outdeg if outdeg is not None else -1), "rep": rep,
+                    "n": n,
+                    "ccr": ccr,
+                    "shape": shape,
+                    "P": P,
+                    "instance": instance.name,
+                    "memory_gib": instance.memory_gib,
+                    "price_per_hour": instance.price_per_hour,
+                    "outdeg": (outdeg if outdeg is not None else -1),
+                    "rep": rep,
                     "algo": "GA",
                     "makespan": met_g[0], "energy": met_g[1], "cost": met_g[2],
                     "reliability": met_g[3], "load_balance": met_g[4]

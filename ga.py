@@ -108,7 +108,7 @@ def normalize_metrics(metrics_list):
     return norm
 
 
-def ga_schedule(G, exec_time, comm, P, params):
+def ga_schedule(G, exec_time, comm, P, params, resource):
     n = exec_time.shape[0]
     pop = init_population(G, P, n, params.pop)
     hall = None
@@ -120,8 +120,10 @@ def ga_schedule(G, exec_time, comm, P, params):
         for (order, mapping) in pop:
             assign, start, finish = decode_schedule(G, order, mapping, exec_time, comm)
             met = compute_metrics_from_timeline(assign, start, finish, P,
-                                                params.power_active[:P], params.power_idle[:P],
-                                                params.price_per_core_hour, params.lambda_fail[:P])
+                                                resource.power_active,
+                                                resource.power_idle,
+                                                resource.price_per_core_hour,
+                                                resource.lambda_fail)
             raw_metrics.append(met)
             decoded.append((order, mapping, assign, start, finish))
 
